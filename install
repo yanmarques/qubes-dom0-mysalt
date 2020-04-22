@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+info() {
+  echo "$(date) - INFO $@"
+}
+
+set_dir_perms() {
+  path="$1"
+  chown -R root:root "$path"
+}
+
+info "Copying salt files to /srv/salt"
+cp -Rib salt/ /srv/salt/ && set_dir_perms /srv/salt/minimal/
+
+info "Copying pillar to /srv/pillar/base/"
+cp -Rib pillar/ /srv/pillar/base && set_dir_perms /srv/pillar/base/minimal/
+
+info "Copying pillar top files to /srv/pillar/_tops/base/"
+cp -ib minimal.top /srv/pillar/_tops/base/ && set_dir_perms /srv/pillar/_tops/base/minimal.top

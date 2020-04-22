@@ -1,0 +1,79 @@
+#!/bin/sh
+set -e
+
+run_configure=true
+dryrun=false
+
+if [ "$1" == "--create-only" ]; then
+  run_configure=false
+  shift
+fi
+
+if [ "$1" == "--dry-run" ]; then
+  dryrun=true
+  shift
+fi
+
+default_cat='networked sys-net sys-firewall'
+default_args='--all'
+
+categories=${@:-$default_cat}
+
+configure_and_install() {
+  local name="$1"
+  local module="$(get_module $name)"
+  local cfg_args="$(get_cfg_args $name)"
+  
+  # create base templates
+  qubesctl "$(get_create_state)" "$module.create"
+  
+  if $run_configure; then
+    # create and configure templates
+    qubesctl top.enable "$module.configure"
+  
+    qubesctl --show-output "$cfg_args" "$(get_cfg_state)" 
+  
+    # disable configuration top file
+    qubesctl top.disable "$module.configure"
+  fi
+}
+
+get_create_state() {
+  $dryrun && echo state.show_sls || echo state.sls
+}
+
+get_cfg_state() {
+  $dryrun && echo state.show_sls || echo state.highstate
+}
+
+get_cfg_args() {
+  name="$1"
+  if [ -f "cfg-args/$name" ]; then
+    cat "cfg-args/$name"
+  else
+    echo "$default_args"
+  fi
+}
+
+get_module() {
+  echo minimal.$1
+}
+
+disable_tops() {
+  set +e
+  local tops="$(qubesctl top.enabled)"
+  for category in $categories; do
+    local cfg_module="$(get_module $category).configure"
+    echo "$tops" | grep "$category" >/dev/null
+    if [ "$?" -eq 0 ]; then
+      qubesctl top.disable "$cfg_module"
+    fi
+  done
+}
+
+trap disable_tops 0 
+
+for category in $categories; do
+  echo "INFO - Starting $category..."
+  configure_and_install "$category"
+done
