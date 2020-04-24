@@ -1,26 +1,18 @@
 # -*- coding: utf-8 -*-
 # vim: set syntax=yaml ts=2 sw=2 sts=2 et :
 
-{% from 'minimal/clonevm.sls' import maybe_clone_vm with context %}
+{% from 'minimal/utils.sls' import clone_then_load_appvms, include_when_required %}
 
-{% set config = pillar.get('sys-firewall-clone') %}
+{% set config = pillar.get('sys-firewall') %}
 
-{{ maybe_clone_vm(config) }}
+{% set defaults = [
+  ['present', 'label', 'green'],
+  ['prefs', 'netvm', 'minimal-sys-net'],
+  ['prefs', 'autostart', True],
+  ['prefs', 'provides-network', True],
+  ['features', 'enable', ['sys-firewall']],
+] %}
 
-{% from 'qvm/template.jinja' import load %}
+{{ include_when_required('minimal.sys-net.create') }}
 
-{% load_yaml as defaults -%}
-name: sys-firewall
-present:
-  - template: {{ config.name }}
-  - label: green
-prefs:
-  - netvm: sys-net
-  - autostart: true
-  - provides-network: true
-  - memory: 400
-  - maxmem: 800
-  - vcpus: 2
-{% endload %}
-
-{{ load(defaults) }}
+{{ clone_then_load_appvms(config, defaults) }}

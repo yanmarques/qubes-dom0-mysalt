@@ -3,4 +3,4 @@
 
 base:
   dom0:
-  - minimal.sys-net.create
+    - minimal.sys-net.create

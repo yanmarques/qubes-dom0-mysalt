@@ -4,6 +4,8 @@
 include:
   - update.qubes-vm
 
+{% set templates = pillar.get('base-templates', {}) %}
+
 {% set common_pkgs = [
     'pciutils',
     'less',
@@ -18,26 +20,24 @@ include:
 
 {% set release_pkgs = {
     'RedHat': [
-        'polkit', 
+        'polkit',
         'vim-minimal',
     ],
     'Debian': [
-        'policykit-1', 
+        'policykit-1',
         'vim',
     ],
 }.get(grains.os_family, []) %}
 
-install-packages:
+install-minimal-template-packages:
   pkg.installed:
-  - pkgs:
-    {% for pkg in common_pkgs + release_pkgs %}
-    - {{ pkg }}
-    {% endfor %}
+    - pkgs:
+      {{ (common_pkgs + release_pkgs) | yaml(False) | indent(6) }}
 
-install-qubes-app-print:
+{% for event in templates.get('after-install', []) %}
+call-after-install-{{ event.name }}:
   cmd.run:
+    # use cmd.script with a file
     - name:
-      - tmpfile=`mktemp` ; curl -Lso $tmpfile https://github.com/yanmarques/qubes-app-print/archives/master.zip ; unzip -d /usr/lib/qubes $tmpfile ; rm -f $tmpfile 
-      - cd /usr/lib/qubes/qubes-app-print-master
-      - chmod +x install
-      - ./install client
+        {{ event.cmd | yaml(False) | indent(8) }}
+{% endfor %}

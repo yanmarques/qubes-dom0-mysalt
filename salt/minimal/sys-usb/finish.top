@@ -3,4 +3,4 @@
 
 base:
   dom0:
-    - minimal.networked.create
+    - minimal.sys-usb.finish

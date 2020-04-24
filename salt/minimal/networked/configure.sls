@@ -19,9 +19,7 @@
     ],
 }) %}
 
-install-packages:
+install-networked-packages:
   pkg.installed:
-  - pkgs:
-    {% for pkg in common_pkgs + release_pkgs %}
-    - {{ pkg }}
-    {% endfor %}
+    - pkgs:
+      {{ (common_pkgs + release_pkgs) | yaml(False) | indent(6) }}

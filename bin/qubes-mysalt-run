@@ -1,0 +1,148 @@
+#!/bin/bash
+set -e
+
+pillar_flag="from_qubes_mysalt"
+
+dryrun=false
+showsls=false
+no_pillar_flag=false
+qubesctl_args=()
+
+usage() {
+  cat <<EOF 2>&1
+Usage: $0 [-d] [template,]
+
+Arguments:
+      template	The name of template which matches a salt module.
+
+Options:
+      -k    When this is on, the state files requirements will be applied.
+      -s    Run state.show_sls for each state file.
+      -d 		Dry run. Really execute nothing, print every command it would run.
+      -h		Show this message.
+EOF
+  exit 128
+}
+
+while [[ "$1" == -* ]]; do
+  case "$1" in
+    -k)
+        no_pillar_flag=true
+        ;;
+    -d)
+      	dryrun=true
+      	;;
+    -s)
+        showsls=true
+        ;;
+    -a)
+        qubesctl_args+=( "$2" )
+        shift
+        ;;
+    -h)
+      	usage
+      	;;
+    *)
+      	echo "ERROR: Unknow option $1"
+      	usage
+        ;;
+  esac
+  shift
+done
+
+###############################################################################
+# BE CAREFULL! THE ORDER IS IMPORTANT, DO NOT CHANGE
+###############################################################################
+
+default_states=()
+default_states+=( 'base-templates' )
+default_states+=( 'networked' )
+default_states+=( 'sys-firewall' )
+default_states+=( 'sys-i2p' )
+default_states+=( 'sys-usb' )
+default_states+=( 'web' )
+default_states+=( 'disconnected' )
+default_states+=( 'sys-net' )
+
+###############################################################################
+
+# by default try to obtain user states
+states=$@
+
+if [ -z "$states" ]; then
+  # set defaults when user states is empty
+  states=${default_states[@]}
+else
+  # disable pillar flag when user inserted custom state sequence
+  # because we can not ensure one know exactly right states sequence
+  # and also because one may want to create just a few VMs
+  no_pillar_flag=true
+fi
+
+info() {
+  echo "$(date) - INFO $@"
+}
+
+runit() {
+  info "$@"
+  if ! $dryrun; then
+    $@
+  fi
+}
+
+call_qubesctl() {
+  local kwargs=()
+
+  # here where we insert the pillar flag with a value of 1 (True)
+  if ! $no_pillar_flag; then
+    kwargs+=( "pillar={\"$pillar_flag\":1}" )
+  fi
+
+  runit qubesctl "${qubesctl_args[@]}" "$@" "${kwargs[@]}"
+}
+
+configure_and_install() {
+  local name="$1"
+  local module="$(get_module $name)"
+
+  if $showsls; then
+    # would create vms
+    call_qubesctl state.show_sls "$module.create"
+
+    # would configure created vms
+    call_qubesctl state.show_sls "$module.configure"
+  else
+    runit qubesctl top.enable "$module"
+
+    call_qubesctl --show-output --all state.highstate
+
+    # disable configuration top file
+    runit qubesctl top.disable "$module"
+  fi
+}
+
+get_module() {
+  echo minimal.$1
+}
+
+disable_remaining_tops() {
+  set +e
+
+  # get all enabled top files
+  local tops="$(call_qubesctl top.enabled)"
+
+  for state in ${states[@]}; do
+    # try to match an enabled module with an existing state
+    local module="$(get_module $state)"
+    echo "$tops" | grep "$module" >/dev/null
+
+    [ "$?" -eq 0 ] && call_qubesctl top.disable "$module"
+  done
+}
+
+trap disable_remaining_tops 0
+
+for state in ${states[@]}; do
+  info "Starting $state..."
+  configure_and_install "$state"
+done

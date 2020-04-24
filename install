@@ -1,6 +1,40 @@
 #!/bin/sh
 set -e
 
+target_bin_dir="${BIN_DIRECTORY:-/usr/bin}"
+force=false
+
+usage() {
+  cat <<EOF 2>&1
+Usage: $0 [-f]
+
+Options:
+  -f    Do not prompt for file overwrite.
+EOF
+  exit 128
+}
+
+while [[ "$1" == -* ]]; do
+  case "$1" in
+    -f)
+       force=true
+       ;;
+    -h)
+       usage
+       ;;
+    *)
+       echo "ERROR: Unknow option $1"
+       usage
+       ;;
+  esac
+  shift
+done
+
+cp_args='-Rb'
+if ! $force; then
+  cp_args+='i'
+fi
+
 info() {
   echo "$(date) - INFO $@"
 }
@@ -10,11 +44,26 @@ set_dir_perms() {
   chown -R root:root "$path"
 }
 
+set_bin_perms() {
+  path="$1"
+  set_dir_perms "$path"
+  chmod 755 "$path"
+}
+
+copy() {
+  # circumvent any bash_alias like alias cp='cp -i' to allow non-interative copy
+  /bin/cp "$cp_args" "$1" "$2"
+}
+
+info "Copying binary qubes-mysalt-run to $target_bin_dir"
+copy bin/qubes-mysalt-run "$target_bin_dir" && \
+  set_bin_perms "${target_bin_dir%/}/qubes-mysalt-run"
+
 info "Copying salt files to /srv/salt"
-cp -Rib salt/ /srv/salt/ && set_dir_perms /srv/salt/minimal/
+copy salt/* /srv/salt/ && set_dir_perms /srv/salt/minimal/
 
 info "Copying pillar to /srv/pillar/base/"
-cp -Rib pillar/ /srv/pillar/base && set_dir_perms /srv/pillar/base/minimal/
+copy pillar/* /srv/pillar/base && set_dir_perms /srv/pillar/base/minimal/
 
 info "Copying pillar top files to /srv/pillar/_tops/base/"
-cp -ib minimal.top /srv/pillar/_tops/base/ && set_dir_perms /srv/pillar/_tops/base/minimal.top
+copy minimal.top /srv/pillar/_tops/base/ && set_dir_perms /srv/pillar/_tops/base/minimal.top

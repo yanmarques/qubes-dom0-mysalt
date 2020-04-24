@@ -3,6 +3,7 @@
 
 {% set common_pkgs = [
     'qubes-core-agent-networking',
+    'qubes-core-agent-dom0-updates',
     'net-tools',
     'nmap',
     'tcpdump',
@@ -21,8 +22,7 @@
    ],
 }) %}
 
-install-packages:
+install-sys-firewall-packages:
   pkg.installed:
-  {% for pkg in common_pkgs + release_pkgs %}
-  - {{ pkg }}
-  {% endfor %}
+    - pkgs:
+      {{ (common_pkgs + release_pkgs) | yaml(False) | indent(6) }}

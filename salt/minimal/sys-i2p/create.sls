@@ -1,46 +1,45 @@
 # -*- coding: utf-8 -*-
 # vim: set syntax=yaml ts=2 sw=2 sts=2 et :
 
-{%- from 'minimal/clonevm.sls' import maybe_clone_vm -%}
-{%- from 'qvm/template.jinja' import load -%}
+{%- from 'minimal/utils.sls' import clone_then_load_appvms, include_when_required -%}
 
-{% set default_port_policy = pillar.get('sys-i2p').get('default-port-policy', 'i2p-client $default allow,target=sys-i2p') %}
-{% set default_policy_path = pillar.get('sys-i2p').get('default-policy-path', '/etc/qubes-rpc/policy/qubes.ConnectTCP') %}
-{% set default_port_policies = pillar.get('sys-i2p').get('default-port-policies', [
-  {
-    'port': '7070',
-  }, 
-  {
-   'port': '4444',
-  },
-]) %}
+{% set config = pillar.get('sys-i2p') %}
 
-{% set pillar_port_policies = pillar.get('sys-i2p').get('port-policies', []) %}
+{% set default_policy_path = config.get(
+  'default-policy-path',
+  '/etc/qubes-rpc/policy/qubes.ConnectTCP'
+) %}
 
-{% set config = pillar.get('sys-i2p').get('clone-config') %}
-{% do salt.log.error(pillar.get('sys-i2p:clone-config')) %}
-{{ maybe_clone_vm(config) }}
+{% set default_policy_ports = config.get('default-policy-ports', [
+  '7070',
+  '4444',
+] ) %}
 
-{% load_yaml as defaults -%}
-name: sys-i2p
-present:
-  - template: {{ config.name }}
-  - label: black
-prefs:
-  - netvm: ''
-  - provides-network: true
-  - memory: 400
-  - maxmem: 800
-  - vcpus: 3
-{%- endload %}
+{% set defaults = [
+  ['present', 'label', 'black'],
+  ['prefs', 'provides-network', True],
+] %}
 
-{{ load(defaults) }}
+{{ include_when_required('minimal.networked.create') }}
 
-# Setup i2p ports
-{% for policy_cfg in default_port_policies + pillar_port_policies %}
-allow-bind-tcp-port-{{ policy_cfg['port'] }}:
+{{ clone_then_load_appvms(config, defaults) }}
+
+{% for vm in config.appvms %}
+  {% set policy_cfg = vm.get('port-policy', {}) %}
+
+  {% set tcp_client = policy_cfg.get('tcp-client', 'i2p-client') %}
+
+  {% set port_policy = policy_cfg.get(
+    'rule',
+    tcp_client + ' $default ask,default_target=' + vm.name
+  ) %}
+
+  {% set custom_ports = policy_cfg.get('ports', []) %}
+
+  {% for port in default_policy_ports + custom_ports %}
+allow-bind-tcp-port-{{ port }}-for-{{ vm.name }}:
   file.append:
-    - name: {{ policy_cfg.get('path', default_policy_path) }}+{{ policy_cfg['port'] }}
-    - text: {{ policy_cfg.get('policy', default_port_policy) }}
+    - name: {{ default_policy_path }}+{{ port }}
+    - text: {{ port_policy }}
+  {% endfor %}
 {% endfor %}
-

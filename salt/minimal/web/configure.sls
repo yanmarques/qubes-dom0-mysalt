@@ -3,3 +3,12 @@
 
 # Init of configuration.
 ############################################################################################
+
+install-packages:
+  pkg.installed:
+    - pkgs:
+      - firefox
+      - icecat
+      - hexchat
+      - pulseaudio-qubes
+      - pavucontrol

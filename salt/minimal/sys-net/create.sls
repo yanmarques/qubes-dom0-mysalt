@@ -1,33 +1,34 @@
 # -*- coding: utf-8 -*-
 # vim: set syntax=yaml ts=2 sw=2 sts=2 et :
 
-{% from 'minimal/clonevm.sls' import maybe_clone_vm %}
-{% from 'qvm/template.jinja' import load %}
+{% from 'minimal/utils.sls'
+  import clone_then_load_appvms,
+  include_when_required,
+  include_when_not_required
+%}
 
 {% set config = pillar.get('sys-net') %}
 
-{{ maybe_clone_vm(config['clone-config']) }}
+{% set defaults = [
+  ['present', 'label', 'red'],
+  ['prefs', 'netvm', ''],
+  ['prefs', 'virt-mode', 'hvm'],
+  ['prefs', 'autostart', True],
+  ['prefs', 'proves-network', True],
+  ['service', 'enable', ['clocksync']],
+] %}
 
-{% load_yaml as defaults -%}
-name: sys-net
-present:
-  - template: {{ config['clone-config'].name }}
-  - label: red
-prefs:
-  - netvm: ''
-  - virt_mode: hvm
-  - autostart: true
-  - provides-network: true
-  - memory: 300
-  - maxmem: 600
-  - vcpus: 1 
-  #- pcidevs: {{ salt['grains.get']('pci_net_devs', []) }}
-  {% if config['clone-config'].get('apparmor', false) %}
-  - kernelopts: nopat iommu=soft swiotlb=8192 apparmor=1 security=apparmor
-  {% endif %}
-service:
-  - enable:
-    - clocksync
-{% endload %}
+{% if config['clone-config'].get('apparmor', false) %}
+  # assume here that the vm will use HVM virtualization
+  {%- do defaults.append([
+    'prefs',
+    'kernelopts',
+    'nopat iommu=soft swiotlb=8192 apparmor=1 security=apparmor'
+    ]) %}
+{% endif %}
 
-{{ load(defaults) }}
+{{ include_when_required('minimal.networked.create') }}
+
+{{ clone_then_load_appvms(config, defaults) }}
+
+{{ include_when_not_required('minimal.sys-net.finish') }}

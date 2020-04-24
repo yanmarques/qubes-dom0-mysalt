@@ -14,8 +14,8 @@
         'NetworkManager-wifi',
         'network-manager-applet',
         'wireless-tools',
-	'notification-daemon',
-	'gnome-keyring',
+        'notification-daemon',
+        'gnome-keyring',
         'nmap-ncat',
         'bind-utils',
     ],
@@ -28,14 +28,12 @@
 {% if grains.os == 'Fedora' %}
   {% do release_pkgs.append('polkit') %}
 
-install-hardware-support-pkg-group:
-  hardware-support:
-    pkg.group_installed
+install-hardware-support-pkg-group-in-fedora:
+  pkg.group_installed:
+    - name: hardware-support
 {% endif %}
 
-install-packages:
+install-sys-net-packages:
   pkg.installed:
     - pkgs:
-      {% for pkg in common_pkgs + release_pkgs %}
-      - {{ pkg }}
-      {% endfor %}
+      {{ (common_pkgs + release_pkgs) | yaml(False) | indent(6) }}
