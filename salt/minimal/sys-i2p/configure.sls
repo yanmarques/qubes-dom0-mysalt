@@ -1,30 +1,32 @@
 # -*- coding: utf-8 -*-
 # vim: set syntax=yaml ts=2 sw=2 sts=2 et :
 
+{%- from 'minimal/utils.sls' import cmd_with_templatevm_proxy %}
+
 {% set default_i2pd_service = '/lib/systemd/system/i2pd.service' %}
 {% set templatevm_systemd_condition = 'ConditionPathExists=!/run/qubes/this-is-templatevm' %}
+
+{% if grains.os == 'CentOS' %}
+  {% set default_i2pd_service = '/usr' + default_i2pd_service %}
+{% endif %}
 
 # see https://i2pd.readthedocs.io/en/latest/user-guide/install/
 {% set repo_cmd = {
     'Debian': 'curl -s https://repo.i2pd.xyz/.help/add_repo | sudo bash -s -',
-    'Fedora': 'dnf copr enable supervillain/i2pd',
-    'CentOS': 'curl -s https://copr.fedorainfracloud.org/coprs/supervillain/i2pd/
-      repo/epel-7/supervillain-i2pd-epel-7.repo -o /etc/yum.repos.d/i2pd-epel-7.repo',
+    'Fedora': 'dnf copr -y enable supervillain/i2pd',
+    'CentOS': 'curl -so /etc/yum.repos.d/i2pd-epel-7.repo https://copr.fedorainfracloud.org/coprs/supervillain/i2pd/repo/epel-7/supervillain-i2pd-epel-7.repo',
 }.get(grains.os) %}
 
-add-r4sas-repo:
-  cmd.run:
-    - name: |
-        {{ repo_cmd | yaml(False) | indent(8) }}
+{{ cmd_with_templatevm_proxy('add-i2p-repo', repo_cmd) }}
 
 install-i2pd-package:
   pkg.installed:
     - name: i2pd
 
-enable-i2p-daemon-service:
+disable-i2p-daemon-service:
   service.dead:
     - name: i2pd
-    - enable: true
+    - enable: False 
 
 add-templatevm-service-condition:
   file.line:
@@ -34,7 +36,7 @@ add-templatevm-service-condition:
     - backup: true
     - content: {{ templatevm_systemd_condition }}
     - unless:
-      - grep -qv {{ templatevm_systemd_condition | quote }} {{ default_i2pd_service }}
+      - grep -q {{ templatevm_systemd_condition | quote }} {{ default_i2pd_service }}
 
 increase-open-fd-limits:
   file.append:

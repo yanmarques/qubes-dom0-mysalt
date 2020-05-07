@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 # vim: set syntax=yaml ts=2 sw=2 sts=2 et :
 
+{%- do salt.log.error(salt['pillar.get']('sys-i2p:templatevm')) %}
+
 base:
-  '*-i2p':
-  - minimal.sys-i2p.configure
+  #'sys-i2p:clone-config:source':
+  #  - match: pillar 
+  #  - minimal.sys-i2p.configure 
+  'sys-i2p:templatevm':
+    - match: pillar 
+    - minimal.sys-i2p.configure 
+

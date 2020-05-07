@@ -18,6 +18,7 @@
 {% set defaults = [
   ['present', 'label', 'black'],
   ['prefs', 'provides-network', True],
+  ['service', 'enable', ['i2pd']],
 ] %}
 
 {{ include_when_required('minimal.networked.create') }}
@@ -31,7 +32,7 @@
 
   {% set port_policy = policy_cfg.get(
     'rule',
-    tcp_client + ' $default ask,default_target=' + vm.name
+    tcp_client + ' @default ask,default_target=' + vm.name
   ) %}
 
   {% set custom_ports = policy_cfg.get('ports', []) %}
@@ -40,6 +41,7 @@
 allow-bind-tcp-port-{{ port }}-for-{{ vm.name }}:
   file.append:
     - name: {{ default_policy_path }}+{{ port }}
-    - text: {{ port_policy }}
+    - text: |
+        {{ port_policy }}
   {% endfor %}
 {% endfor %}
