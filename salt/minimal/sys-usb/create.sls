@@ -14,6 +14,9 @@
   ['prefs', 'netvm', ''],
   ['prefs', 'autostart', True],
   ['prefs', 'virt_mode', 'hvm'],
+  ['prefs', 'mem', 0],
+  ['prefs', 'maxmem', 300],
+  ['prefs', 'vcpus', 1],
 ] %}
 
 {{ include_when_required('minimal.base-templates.create') }}
@@ -25,7 +28,7 @@
 # Setup Qubes RPC policy
 {% for vm in config.appvms %}
 sys-usb-input-proxy-to-{{ vm.name }}:
-  file.append:
+  file.prepend:
     - name: /etc/qubes-rpc/policy/qubes.InputMouse
     - text: {{ vm.name }} dom0 {{ vm.get('dom0-proxy-action', 'ask') }},user=root,default_target=dom0
     - require:
