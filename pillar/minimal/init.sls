@@ -152,8 +152,8 @@ dev:
       volume: 20G
       tags:
         - add:
-          - ssh-only-vault-ssh
-          - gpg-only-vault-gpg
+          - ssh-only-ssh
+          - gpg-only-gpg
 
     - name: full-test
       disable-default-fw-rules: true # only way to allow other traffic than https, but also allow everything
@@ -162,37 +162,20 @@ dev:
 sys-backup:
   templatevm: centos-7-minimal
   
-  ssh-host: backup.borg
-  ssh-hostname: usw-s001.rsync.net
-  ssh-user: 1111
+  # this below are not being used by now, but should
+  # the idea was to configure this as ssh config in a system-wide way
+  # ssh-host: alias-used
+  # ssh-user: your-ssh-user
+
+  ssh-hostname: your-backup-host.net # adds firewall rule allowing this host on ssh port  
   
   appvms:
-    - name: college-backup
-      volume: 5G
+    - name: sys-backup
+      volume: 50G
       tags:
         - add:
-          - college-ssh
-          - college-kpxc
-    
-    - name: work-backup
-      volume: 10G
-      tags:
-        - add:
-          - work-ssh
-          - work-kpxc
-    
-    - name: personal-backup
-      tags:
-        - add:
-          - personal-ssh
-          - personal-kpxc
-
-    - name: sys-mgmt-backup
-      present:
-        - label: black
-      prefs:
-        - maxmem: 1024
-        - vcpus: 1
+          - ssh-only-ssh
+          - mypasswords-kpxc
 
 
 ###############################################################################
