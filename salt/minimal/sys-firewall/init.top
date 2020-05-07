@@ -5,5 +5,5 @@ base:
   'dom0':
     - minimal.sys-firewall.create
 
-  '*-networked':
+  '*-minimal':
     - minimal.sys-firewall.configure

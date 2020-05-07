@@ -22,7 +22,22 @@
    ],
 }) %}
 
+# fixes installing wireshark GUI on CentOS, because just wireshark is the cli only
+# see https://osqa-ask.wireshark.org/questions/13243/wireshark-command-not-found
+{%- if grains.os == 'CentOS' %}
+  {%- do release_pkgs.pop('wireshark') %}
+  {%- do release_pkgs.append('wireshark-gnome') %}
+{%- endif %}
+
 install-sys-firewall-packages:
   pkg.installed:
     - pkgs:
       {{ (common_pkgs + release_pkgs) | yaml(False) | indent(6) }}
+
+allow-default-user-read-interfaces-with-wireshark:
+  user.present:
+    - name: user
+    - groups:
+      {{ (salt.user.list_groups('user') + ['wireshark']) | yaml(False) | indent(6) }}
+    - require:
+      - install-sys-firewall-packages

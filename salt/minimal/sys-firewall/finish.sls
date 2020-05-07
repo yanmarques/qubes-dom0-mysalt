@@ -1,0 +1,17 @@
+# -*- coding: utf-8 -*-
+# vim: set syntax=yaml ts=2 sw=2 sts=2 et :
+
+{%- from 'minimal/utils.sls' import get_default_vm, qubes_prefs %}
+
+{%- set default_data = {} %}
+{%- do get_default_vm(default_data, 'sys-firewall', 'firewall') %}
+
+{% load_yaml as data -%}
+prefs:
+  default_netvm: {{ default_data.firewall }}
+  updatevm: {{ default_data.firewall }}
+cmd_args:
+  - order: last 
+{%- endload %}
+
+{{ qubes_prefs(**data) }}
