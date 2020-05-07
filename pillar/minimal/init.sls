@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# vim: set syntax=yaml ts=2 sw=2 sts=2 et :
+#
+# Full example file of a pillar configuration 
+
 ###############################################################################
 # BASE TEMPLATES CONFIGURATION
 ###############################################################################
@@ -8,86 +13,81 @@ base-templates:
       - fedora-30
       - debian-10
       - centos-7
-    fromrepo: qubes-templates-cummunity-testing
 
-  after-install:
-    - name: qubes-app-print
-      cmd: |
-        tmpfile=`mktemp` ; \
-          curl -Lso $tmpfile https://github.com/yanmarques/qubes-app-print/archive/master.zip ; \
-          unzip -d /usr/lib/qubes $tmpfile ; \
-          rm -f $tmpfile
-        cd /usr/lib/qubes/qubes-app-print-master
-        chmod +x install
-        ./install client
-
-networked:
-  clones:
-    - name: fedora-30-networked
-      source: fedora-30-minimal
-
-    - name: debian-10-networked
-      source: debian-10-minimal
-
-    - name: centos-7-networked
-      source: centos-7-minimal
 
 ###############################################################################
 # SYS-LIKE APPVM CONFIGURATION
 ###############################################################################
 
 sys-net:
-  clone-config:
-    name: debian-10-net
-    source: debian-10-networked
-    apparmor: true
+  templatevm: debian-10-minimal
 
   appvms:
-    - name: minimal-sys-net
-      prefs:
-        - mem: 400
-        - maxmem: 0
-        - vcpus: 1
+    - name: sys-net
+    - name: other-sys-net
+      default-net: true # sets this vm as firewall-vm's netvm
 
 
 sys-firewall:
-  clone-config:
-    name: centos-7-firewall
-    source: centos-7-networked
+  templatevm: centos-7-minimal
 
   appvms:
-    - name: minimal-sys-firewall
+    - name: sys-firewall
       prefs:
-        - netvm: sys-net
         - mem: 400
         - maxmem: 700
+      disable-default-fw-rules: True
+    - name: other-sys-firewall
+      default-firewall: true # sets this vm qubes netvm
+      disable-default-fw-rules: True
 
 
 sys-usb:
   templatevm: centos-7-minimal
-  # clone-config:
-  #   name: centos-7-usb
-  #   source: centos-7-minimal
 
   appvms:
-    - name: minimal-sys-usb
-      prefs:
-        - mem: 300
-        - maxmem: 0
-        - vcpus: 1
+    - name: sys-usb
+      dom0-proxy-action: allow # ask by default
+
+    - name: other-sys-usb
+      default-usb: true # allows this vm in InputMouse policy
 
 
 sys-i2p:
-  templatevm: debian-10-networked
-  # clone-config:
-  #   name: debian-10-i2p
-  #   source: debian-10-networked
+  templatevm: centos-7-minimal
 
   appvms:
-    - name: minimal-sys-i2p
+    - name: sys-i2p
+      port-policy:
+        rule: $anyvm sys-i2p deny # i2p-client @default ask,default_target=sys-i2p by default
+
+    - name: sys-anon-i2p
+      port-policy:
+        tcp-client: i2p-anon-client # i2p-client by default
       prefs:
-        - mem: 400
-        - maxmem: 800
+        - netvm: sys-whonix
+
+
+sys-print:
+  templatevm: centos-7-minimal
+
+  appvms:
+    - name: sys-print-dvm
+      prefs:
+        - default_dispvm: sys-print-dvm
+
+    - name: sys-print-not-dvm
+      prefs:
+        - template_for_dispvms: false # true by default
+
+
+sys-mgmt:
+  templatevm: debian-10-minimal
+
+  appvms:
+    - name: default-mgmt-dvm
+      prefs:
+        - default_dispvm: default-mgmt-dvm
 
 
 ###############################################################################
@@ -96,94 +96,135 @@ sys-i2p:
 
 
 web:
-  clone-config:
-    name: fedora-30-web
-    source: fedora-30-networked
-
+  templatevm: fedora-30-minimal
+  
   appvms:
-    - name: minimal-untrusted-browser-dvm
+    - name: untrusted-browser-dvm
       prefs:
         - template_for_dispvms: true
-        - default_dispvm: minimal-untrusted-browser-dvm
-        - include_in_backups: false
-        - maxmem: 2048
+        - default_dispvm: untrusted-browser-dvm
       features:
         - enable:
           - appmenus-dispvm
-
-    - name: minimal-personal-web
+      volume: 10G
+      disable-default-fw-rules: True
+    
+    - name: personal-web
       present:
-        - label: blue
-      prefs:
-        - include_in_backups: false
-        - maxmem: 2048
-        - vcpus: 1
-      firewall:
-        - action: accept
-          dst4: protonmail.com
-          proto: tcp
-          dstports: 443
+        - label: gray  # red by default
+      tags:
+        - add:
+          - mypasswords-vault-kpxc # see vault section
+      https-hosts:
+        - my-awesome-https-site.net
 
-    - name: minimal-college-web
-      present:
-        - label: blue
-      prefs:
-        - include_in_backups: false
-        - maxmem: 2048
-        - vcpus: 1
-      firewall:
-        {% for host in [
-            'api.unisul.br',
-            'minha.unisul.br',
-            'mu.unisul.br',
-            'static.unisul.br',
-            'www.uaberta.unisul.br',
-            ] %}
-        - action: accept
-          proto: tcp
-          dstports: 443
-          dst4: {{ host }}
-        {% endfor %}
-
-    - name: minimal-work-web
-      present:
-        - label: blue
-      prefs:
-        - include_in_backups: false
-        - maxmem: 2048
-        - vcpus: 1
-      firewall:
-        - action: accept
-          proto: tcp
-          dstports: 443
-          dst4: github.com
 
 ###############################################################################
-# NON-NETWORKED APPVM CONFIGURATION
+# DISCONNECTED APPVM CONFIGURATION
 ###############################################################################
+
 
 disconnected:
-  clone-config:
-    name: debian-10-disconnected
-    source: debian-10-minimal
+  templatevm: debian-10-minimal
 
   appvms:
-    - name: minimal-personal-vault
-      prefs:
-        - maxmem: 600
+    - name: hot-storage
+      present:
+        - label: blue # black by default
+      volume: 20G
 
-    - name: minimal-college-vault
-      prefs:
-        - maxmem: 600
+    - name: cold-storage
+      volume: 70G   
 
-    - name: minimal-work-vault
-      prefs:
-        - maxmem: 600
 
-    - name: minimal-storage
-      prefs:
-        - maxmem: 2048
+###############################################################################
+# DEVELOPMENT AND BACKUP APPVM CONFIGURATION
+###############################################################################
 
-    - name: minimal-audio
+
+dev: 
+  clone-config:
+   name: fedora-30-dev
+   source: fedora-30-minimal
+
+  appvms:
+    - name: work-dev
+      volume: 20G
+      tags:
+        - add:
+          - ssh-only-vault-ssh
+          - gpg-only-vault-gpg
+
+    - name: full-test
+      disable-default-fw-rules: true # only way to allow other traffic than https, but also allow everything
+
+
+sys-backup:
+  templatevm: centos-7-minimal
+  
+  ssh-host: backup.borg
+  ssh-hostname: usw-s001.rsync.net
+  ssh-user: 1111
+  
+  appvms:
+    - name: college-backup
+      volume: 5G
+      tags:
+        - add:
+          - college-ssh
+          - college-kpxc
+    
+    - name: work-backup
+      volume: 10G
+      tags:
+        - add:
+          - work-ssh
+          - work-kpxc
+    
+    - name: personal-backup
+      tags:
+        - add:
+          - personal-ssh
+          - personal-kpxc
+
+    - name: sys-mgmt-backup
+      present:
+        - label: black
       prefs:
         - maxmem: 1024
+        - vcpus: 1
+
+
+###############################################################################
+# VAULT APPVM CONFIGURATION
+###############################################################################
+
+
+vault:
+  templatevm: debian-10-minimal
+
+  appvms:
+    - name: gpg-only-vault
+      policy:
+        kpxc:
+          command: deny # actually this means, no clipboard data leaves this vm
+        ssh:
+          command: deny
+        gpg:
+          command: allow # ask,default_target=gpg-only-vault will by the default
+
+    - name: ssh-only-vault
+      policy:
+        kpxc:
+          command: deny
+        gpg:
+          command: deny 
+
+    - name: mypasswords-vault 
+      policy:
+        kpxc:
+          command: ask,default_target=mypasswords-vault # this is useless, because this is already the default
+        gpg:
+          command: deny
+        ssh:
+          command: deny
