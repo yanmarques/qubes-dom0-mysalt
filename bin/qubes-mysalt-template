@@ -73,7 +73,7 @@ slsf_info configure.sls
 cat <<EOF >> /srv/pillar/base/minimal/init.sls
 
 $name:
-  templatevm: # replace with the template vm" )
+  templatevm: # replace with the template vm
   #clone_config:
   #  name: $name
   #  source:
