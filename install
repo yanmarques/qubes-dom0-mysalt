@@ -31,7 +31,9 @@ while [[ "$1" == -* ]]; do
 done
 
 cp_args='-Rb'
-if ! $force; then
+if $force; then
+  cp_args+='f'
+else
   cp_args+='i'
 fi
 
@@ -45,19 +47,22 @@ set_dir_perms() {
 }
 
 set_bin_perms() {
-  path="$1"
+  path="$1" 
   set_dir_perms "$path"
   chmod 755 "$path"
 }
 
 copy() {
-  # circumvent any bash_alias like alias cp='cp -i' to allow non-interative copy
-  /bin/cp "$cp_args" "$1" "$2"
+  cp "$cp_args" "$1" "$2"
 }
 
 info "Copying binary qubes-mysalt-run to $target_bin_dir"
 copy bin/qubes-mysalt-run "$target_bin_dir" && \
   set_bin_perms "${target_bin_dir%/}/qubes-mysalt-run"
+
+info "Copying binary qubes-mysalt-template to $target_bin_dir"
+copy bin/qubes-mysalt-template "$target_bin_dir" && \
+  set_bin_perms "${target_bin_dir%/}/qubes-mysalt-template"
 
 info "Copying salt files to /srv/salt"
 copy salt/* /srv/salt/ && set_dir_perms /srv/salt/minimal/
