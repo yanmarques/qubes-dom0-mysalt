@@ -33,7 +33,8 @@
 {{ clone_then_load_appvms(config, defaults) }}
 
 {%- for vm in config.get('appvms', [])%}
-  {%- set group = vm.name.split('-')[0] %}
+  # remove last fragment from name, which generally is vault
+  {%- set group = vm.name.split('-')[:-1] | join('-') %}
   {%- for policy in policies %}
     {%- set command = vm.get('policy', {}).get(policy.name, {}).get('command', 'ask,default_target=' + vm.name) %}
 
