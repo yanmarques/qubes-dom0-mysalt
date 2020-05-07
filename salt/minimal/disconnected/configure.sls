@@ -8,9 +8,8 @@ install-packages:
   pkg.installed:
     - pkgs:
       - pulseaudio-qubes
-      - keepassxc
       - evince
       - libreoffice-writer
-      - libreoffice-presentation
-      - rythmbox
+      - libreoffice-impress
+      - rhythmbox
       - vlc
