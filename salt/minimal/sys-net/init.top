@@ -5,5 +5,5 @@ base:
   'dom0':
     - minimal.sys-net.create
 
-  '*-networked':
+  '*-minimal':
     - minimal.sys-net.configure

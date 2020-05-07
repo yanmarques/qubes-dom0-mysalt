@@ -14,11 +14,14 @@
   ['prefs', 'netvm', ''],
   ['prefs', 'virt-mode', 'hvm'],
   ['prefs', 'autostart', True],
-  ['prefs', 'proves-network', True],
+  ['prefs', 'mem', 0],
+  ['prefs', 'maxmem', 400],
+  ['prefs', 'vcpus', 1],
+  ['prefs', 'provides-network', True],
   ['service', 'enable', ['clocksync']],
 ] %}
 
-{% if config['clone-config'].get('apparmor', false) %}
+{% if config.get('apparmor', false) %}
   # assume here that the vm will use HVM virtualization
   {%- do defaults.append([
     'prefs',
